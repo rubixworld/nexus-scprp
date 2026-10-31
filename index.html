@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus • SCP-RP Terminal</title>
+    
+    <!-- SEO / Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Nexus • SCP-RP Terminal">
+    <meta property="og:description" content="Официальный портал ролевого проекта по вселенной SCP в Minecraft 1.20.1 Forge.">
+    <meta property="og:image" content="og-banner.png">
+    <meta name="theme-color" content="#05070A">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="icon" type="image/png" href="favicon.png">
+    
+    <style>
+        :root {
+            --bg-dark: #05070A;
+            --bg-panel: rgba(17, 22, 32, 0.6);
+            --border: rgba(255, 255, 255, 0.08);
+            --text-main: #E6EDF3;
+            --text-muted: #8B949E;
+            --accent: #5899F9;
+            --accent-2: #6356F7;
+            --grad: linear-gradient(90deg, var(--accent), var(--accent-2));
+            --green: #2ECC71;
+            --yellow: #F1C40F;
+            --red: #FF4D4D;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --sidebar-width: 260px;
+            --radius: 12px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: var(--font-main);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* PRELOADER */
+        #preloader {
+            position: fixed; inset: 0; z-index: 99999;
+            background: var(--bg-dark); display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+        }
+        #preloader.hidden { opacity: 0; visibility: hidden; }
+        .spinner {
+            width: 50px; height: 50px; border: 3px solid rgba(88,153,249,0.3);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 1s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .preloader-text { font-family: var(--font-mono); color: var(--accent); font-size: 1.2rem; letter-spacing: 2px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* BACKGROUND */
+        .bg-image-layer {
+            position: fixed; inset: 0; z-index: -2;
+            background-image: url('og-banner.png');
+            background-size: cover; background-position: center;
+            background-color: #05070A;
+        }
+        .bg-image-layer::before {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(5,7,10,0.85) 0%, rgba(5,7,10,0.6) 100%);
+            backdrop-filter: blur(3px); z-index: 1;
+        }
+        .bg-image-layer::after {
+            content: ''; position: absolute; inset: -10%;
+            background-image: 
+                linear-gradient(rgba(99, 86, 247, 0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 86, 247, 0.12) 1px, transparent 1px);
+            background-size: 40px 40px; z-index: 2; pointer-events: none;
+            transform: translate(var(--parallax-x, 0px), var(--parallax-y, 0px));
+            transition: transform 0.1s ease-out;
+        }
+
+        .mono { font-family: var(--font-mono); }
+        .muted { color: var(--text-muted); }
+        h1, h2, h3 { font-weight: 800; text-transform: uppercase; letter-spacing: 1px; }
+        h1 { font-size: 2rem; margin-bottom: 20px; color: #fff; }
+        h2 { font-size: 1.5rem; margin-bottom: 20px; color: var(--accent); }
+        p { line-height: 1.6; margin-bottom: 15px; color: #B0B8C4; font-size: 0.95rem; }
+        a { text-decoration: none; color: inherit; transition: 0.2s; }
+
+        .sidebar {
+            width: var(--sidebar-width); background: rgba(8, 10, 15, 0.8);
+            backdrop-filter: blur(20px); border-right: 1px solid var(--border);
+            position: fixed; top: 0; bottom: 0; left: 0;
+            display: flex; flex-direction: column; z-index: 100; padding: 20px 12px;
+            transition: transform 0.3s;
+        }
+        .brand { padding: 10px 12px 30px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
+        .brand img { width: 36px; height: 36px; filter: drop-shadow(0 0 10px var(--accent)); }
+        .brand-text { font-size: 1.2rem; font-weight: 800; letter-spacing: 1px; color: #fff; }
+        .brand-sub { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; }
+
+        .nav-menu { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+        .nav-menu::-webkit-scrollbar { width: 0px; }
+        .nav-group-title { font-family: var(--font-mono); font-size: 0.7rem; color: var(--text-muted); padding: 20px 12px 10px; opacity: 0.6; }
+        
+        .nav-link {
+            display: flex; align-items: center; gap: 12px; padding: 12px 16px;
+            font-size: 0.9rem; font-weight: 500; color: var(--text-muted);
+            border-radius: var(--radius); transition: 0.2s;
+        }
+        .nav-link:hover { background: rgba(255, 255, 255, 0.04); color: var(--text-main); }
+        .nav-link.active {
+            background: rgba(88, 153, 249, 0.1); color: var(--accent);
+            font-weight: 600; box-shadow: inset 3px 0 0 var(--accent);
+        }
+        
+        .sidebar-footer {
+            padding: 15px 12px; background: rgba(0,0,0,0.3); border-radius: var(--radius);
+            font-family: var(--font-mono); font-size: 0.75rem; display: flex; align-items: center; gap: 10px;
+            color: var(--text-main); border: 1px solid var(--border);
+        }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+
+        .main-content { margin-left: var(--sidebar-width); flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; z-index: 1; }
+        
+        .topbar {
+            height: 72px; border-bottom: 1px solid var(--border);
+            background: rgba(5, 7, 10, 0.4); backdrop-filter: blur(12px);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 30px; position: sticky; top: 0; z-index: 50;
+        }
+        .mobile-menu-btn { display: none; background: none; border: none; color: #fff; font-size: 1.5rem; cursor: pointer; }
+        
+        /* PAGE TRANSITIONS */
+        .content-wrapper { padding: 40px; max-width: 1300px; margin: 0 auto; width: 100%; transition: opacity 0.25s ease, transform 0.25s ease; }
+        .content-wrapper.fade-out { opacity: 0; transform: translateY(10px); }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 12px 24px; border-radius: 50px; font-family: var(--font-main);
+            font-size: 0.9rem; font-weight: 700; cursor: pointer; border: none; transition: 0.3s;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .btn-primary { background: var(--grad); color: #fff; box-shadow: 0 4px 15px rgba(99, 86, 247, 0.3); }
+        .btn-primary:hover { filter: brightness(1.2); box-shadow: 0 6px 20px rgba(99, 86, 247, 0.5); transform: translateY(-2px); }
+        .btn-outline { background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); color: var(--text-main); }
+        .btn-outline:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.2); transform: translateY(-2px); }
+        .btn-danger { background: rgba(255, 77, 77, 0.1); color: var(--red); border: 1px solid rgba(255, 77, 77, 0.3); }
+        .btn-danger:hover { background: rgba(255, 77, 77, 0.2); }
+        
+        .w-100 { width: 100%; } .mt-15 { margin-top: 15px; } .mb-20 { margin-bottom: 20px; }
+
+        .panel {
+            background: var(--bg-panel); backdrop-filter: blur(16px);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            padding: 30px; margin-bottom: 24px; position: relative; overflow: hidden;
+        }
+        
+        .mouse-glow { position: relative; overflow: hidden; }
+        .mouse-glow::before {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(120px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(99, 86, 247, 0.15), transparent 100%);
+            opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 0;
+        }
+        .mouse-glow:hover::before { opacity: 1; }
+        .mouse-glow > * { position: relative; z-index: 1; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+
+        .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 40px; align-items: center; min-height: 60vh; margin-bottom: 40px; }
+        .hero-title { font-size: clamp(40px, 6vw, 80px); font-weight: 900; line-height: 1; margin-bottom: 20px; }
+        .hero-title .grad { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .server-monitor {
+            background: rgba(10, 14, 20, 0.7); backdrop-filter: blur(16px);
+            border: 1px solid var(--border); border-radius: var(--radius);
+            aspect-ratio: 1 / 1; width: 100%; display: flex; flex-direction: column;
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5); position: relative; overflow: hidden;
+        }
+        .monitor-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
+        .monitor-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; }
+        .pulse-wrap { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .pulse-ring { position: absolute; width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--accent); opacity: 0.5; animation: pulseRing 2s infinite; }
+        .pulse-dot { border-radius: 50%; }
+        @keyframes pulseRing { 0%{transform:scale(1);opacity:0.8;} 100%{transform:scale(1.5);opacity:0;} }
+        .monitor-label { font-size: 1.1rem; font-weight: 800; color: #fff; margin-bottom: 15px; }
+        .monitor-code { font-family: var(--font-mono); font-size: 0.75rem; text-align: left; background: rgba(0,0,0,0.4); border-radius: 8px; padding: 16px; width: 100%; border-left: 3px solid var(--accent); }
+        .monitor-stats { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--border); }
+        .mstat { padding: 15px 10px; text-align: center; border-right: 1px solid var(--border); }
+        .mstat:last-child { border-right: none; }
+        .mk { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
+        .mv { font-size: 0.85rem; font-weight: 700; color: #fff; }
+
+        .status-row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel); backdrop-filter: blur(10px); }
+        .status-cell { padding: 30px; border-right: 1px solid var(--border); display: flex; flex-direction: column; justify-content: center; }
+        .status-cell:last-child { border-right: none; }
+        .status-cell .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .status-cell .head .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 10px var(--green); }
+        .status-cell .head strong { font-size: 18px; color: #fff; }
+        .status-cell .sub { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+        .status-cell .big { font-size: 24px; font-weight: 900; color: #fff; margin-bottom: 5px; }
+        .status-cell .k { font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); }
+
+        .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .pcard { padding: 30px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-panel); backdrop-filter: blur(10px); display: flex; flex-direction: column; cursor: pointer; }
+        .pcard:hover { border-color: var(--accent); background: rgba(88, 153, 249, 0.05); transform: translateY(-3px); }
+        .pcard .icon { width: 45px; height: 45px; border-radius: 12px; background: rgba(88,153,249,0.1); display: flex; align-items: center; justify-content: center; font-size: 20px; color: var(--accent); margin-bottom: 20px; }
+        .pcard h3 { font-size: 20px; margin-bottom: 12px; color: #fff; }
+        .pcard p { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; flex: 1; }
+        .pcard .open { font-family: var(--font-mono); font-size: 12px; color: var(--accent); font-weight: 700; }
+
+        .rules-content { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 35px; backdrop-filter: blur(10px); position: relative; overflow: hidden; }
+        .rules-intro { border-left: 3px solid var(--accent); padding-left: 20px; color: #C9D1D9; font-size: 14px; line-height: 1.7; margin-bottom: 35px; }
+        .rules-section { margin-bottom: 30px; }
+        .rules-section-title { font-size: 18px; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 20px; }
+        .rules-sub { margin-bottom: 20px; }
+        .rules-sub-title { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .rules-label { color: var(--accent); font-weight: 700; }
+        .rules-punish { font-family: var(--font-mono); font-size: 12px; background: rgba(0,0,0,0.3); padding: 12px 16px; border-left: 2px solid var(--yellow); border-radius: 0 8px 8px 0; margin-top: 10px; color: var(--text-muted); }
+        .rules-bottom-warn { text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--yellow); padding: 20px; border: 1px dashed rgba(241, 196, 15, 0.3); border-radius: var(--radius); margin-top: 30px; }
+
+        .staff-section { margin-bottom: 30px; }
+        .staff-section-header { display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-radius: var(--radius); background: rgba(255,255,255,0.03); border: 1px solid var(--border); font-weight: 700; color: #fff; margin-bottom: 15px; }
+        .staff-section-header.high { background: rgba(255, 77, 77, 0.1); border-color: rgba(255,77,77,0.3); }
+        
+        .staff-row { display: grid; grid-template-columns: 50px 1fr auto; gap: 15px; align-items: center; padding: 15px 20px; background: rgba(255,255,255,0.02); border-radius: var(--radius); margin-bottom: 8px; border: 1px solid transparent; }
+        .staff-row:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); }
+        .staff-num { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; color: var(--accent); }
+        .staff-role-name { font-weight: 600; color: #fff; }
+        .staff-person { font-family: var(--font-mono); font-size: 0.85rem; padding: 5px 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 50px; color: #fff; }
+        .staff-vacant { font-family: var(--font-mono); font-size: 0.8rem; padding: 5px 12px; border: 1px dashed var(--border); border-radius: 50px; color: var(--text-muted); }
+
+        .mgmt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-bottom: 30px; }
+        .mgmt-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px 20px 30px; text-align: center; position: relative; backdrop-filter: blur(10px); }
+        .mgmt-level { position: absolute; top: 15px; right: 15px; font-family: var(--font-mono); font-size: 0.7rem; padding: 4px 10px; border-radius: 50px; background: rgba(88, 153, 249, 0.1); color: var(--accent); border: 1px solid rgba(88, 153, 249, 0.3); }
+        .mgmt-tag { font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent); letter-spacing: 2px; margin-bottom: 10px; }
+        .mgmt-role { font-size: 1.1rem; font-weight: 700; color: #fff; margin-bottom: 20px; }
+        .mgmt-name { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 800; background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; padding-top: 20px; border-top: 1px solid var(--border); }
+
+        .input-field { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; color: #fff; padding: 12px 15px; margin-bottom: 12px; font-family: var(--font-main); outline: none; transition: 0.2s; }
+        .input-field:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,153,249,0.15); }
+        
+        /* WYSIWYG Редактор */
+        .wysiwyg-wrap { margin-bottom: 20px; }
+        .wysiwyg-toolbar { display: flex; gap: 5px; flex-wrap: wrap; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px 8px 0 0; border: 1px solid var(--border); border-bottom: none; }
+        .wysiwyg-toolbar button, .wysiwyg-toolbar select, .wysiwyg-toolbar input { background: rgba(0,0,0,0.4); border: 1px solid var(--border); color: #fff; padding: 5px 10px; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .wysiwyg-toolbar button:hover { background: var(--accent); }
+        .wysiwyg-toolbar input[type="color"] { padding: 0; width: 30px; height: 30px; }
+        .wysiwyg-editor { min-height: 200px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 0 0 8px 8px; padding: 15px; color: #fff; outline: none; overflow-y: auto; }
+
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        .admin-tab { padding: 10px 20px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); cursor: pointer; transition: 0.2s; }
+        .admin-tab.active { background: var(--grad); color: #fff; border-color: transparent; }
+        .admin-section { display: none; }
+        .admin-section.active { display: block; }
+        
+        .adm-toggle { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; color: #fff; }
+        .adm-switch { position: relative; width: 44px; height: 24px; background: rgba(255,255,255,0.1); border-radius: 50px; cursor: pointer; transition: 0.3s; }
+        .adm-switch::after { content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: 0.3s; }
+        .adm-switch.on { background: var(--green); }
+        .adm-switch.on::after { left: 23px; }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-overlay.active { display: flex; }
+        .modal-box { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; width: 100%; max-width: 400px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); position: relative; backdrop-filter: blur(20px); }
+        .close-btn { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+        .close-btn:hover { color: var(--red); }
+
+        .maintenance { position: fixed; inset: 0; z-index: 9999; background: rgba(5,7,10,0.95); backdrop-filter: blur(20px); display: none; align-items: center; justify-content: center; }
+        .maintenance.show { display: flex; }
+        .maintenance-card { background: var(--bg-panel); border: 1px solid var(--border); border-top: 3px solid var(--yellow); padding: 50px; border-radius: var(--radius); text-align: center; max-width: 500px; width: 90%; }
+        .mnt-title { color: #fff; font-size: 2rem; margin-bottom: 15px; }
+        .mnt-progress { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; margin-top: 20px; }
+        .mnt-progress i { display: block; height: 100%; width: 40%; background: var(--yellow); animation: slide 2s infinite linear; }
+        @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+
+        /* Тосты и обновление */
+        .toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            background: var(--bg-panel); border: 1px solid var(--accent);
+            color: #fff; padding: 14px 20px; border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+            animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            display: flex; align-items: center; gap: 12px;
+            font-size: 0.9rem; min-width: 280px; border-left: 4px solid var(--accent);
+        }
+        .toast.error { border-color: var(--red); border-left-color: var(--red); }
+        .toast.hide { animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        @keyframes slideInRight { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(120%); opacity: 0; } }
+        .btn-refresh { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; margin-left: 10px; }
+        .btn-refresh:hover { color: var(--accent); border-color: var(--accent); background: rgba(88,153,249,0.1); }
+        .btn-refresh.spinning svg { animation: spin 1s linear infinite; }
+
+        /* Drag & Drop Стили */
+        .drag-handle { cursor: grab; color: var(--text-muted); padding-right: 10px; font-size: 1.2rem; }
+        .drag-handle:active { cursor: grabbing; }
+        .staff-admin-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 8px; margin-bottom: 10px; border: 1px solid var(--border); cursor: grab; transition: 0.2s; }
+        .staff-admin-row:hover { border-color: var(--accent); }
+        .staff-admin-row.dragging { opacity: 0.5; border-style: dashed; }
+        .staff-admin-row.drag-over { border-top: 2px solid var(--accent); }
+
+        @media (max-width: 900px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+            .mobile-menu-btn { display: block; }
+            .grid-2, .grid-3, .grid-4, .cards, .status-row, .hero, .mgmt-grid { grid-template-columns: 1fr; }
+            .content-wrapper { padding: 20px; }
+            .topbar-info { display: none; }
+            .status-cell { border-right: none; border-bottom: 1px solid var(--border); }
+            .staff-row { grid-template-columns: 40px 1fr; gap: 10px; text-align: center; }
+            .staff-row > div { justify-self: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Прелоадер -->
+    <div id="preloader">
+        <div class="spinner"></div>
+        <div class="preloader-text">INITIALIZING NEXUS...</div>
+    </div>
+
+    <div class="bg-image-layer"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="brand" id="brandBtn">
+            <img src="badge.png" alt="Nexus Logo" onerror="this.style.display='none'">
+            <div>
+                <div class="brand-text">NEXUS</div>
+                <div class="brand-sub">SCP-RP SYSTEM</div>
+            </div>
+        </div>
+
+        <nav class="nav-menu">
+            <a href="#/home" class="nav-link" data-page="home">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg> Главная
+            </a>
+            <div class="nav-group-title">// ДОКУМЕНТАЦИЯ</div>
+            <a href="#/rules-discord" class="nav-link" data-page="rules-discord">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg> Правила Discord
+            </a>
+            <a href="#/rules-rp" class="nav-link" data-page="rules-rp">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg> Правила отыгровки
+            </a>
+            <a href="#/rules-admin" class="nav-link" data-page="rules-admin">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg> Правила администрации
+            </a>
+            
+            <div class="nav-group-title">// ПЕРСОНАЛ</div>
+            <a href="#/management" class="nav-link" data-page="management">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg> Руководство
+            </a>
+            <a href="#/staff" class="nav-link" data-page="staff">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg> Список персонала
+            </a>
+            <a href="#/roles" class="nav-link" data-page="roles">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line></svg> Роли проекта
+            </a>
+            
+            <div class="nav-group-title">// СИСТЕМА</div>
+            <a href="#/download" class="nav-link" data-page="download">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> Скачать лаунчер
+            </a>
+            <a href="#/about" class="nav-link" data-page="about">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg> О нас / Связь
+            </a>
+            
+            <a href="#/admin" class="nav-link" id="adminNavLink" style="display:none; color: var(--red);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg> [ADMIN] Панель
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="status-dot"></div> STATUS: ONLINE <br>
+            <span class="muted">VER: 1.20.1 FORGE</span>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+            <div class="topbar-info mono" style="display:flex; align-items:center; background: rgba(0,0,0,0.2); padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border); font-size:0.8rem;">
+                <span>[ NODE: NEXUS-01 ]</span>
+                <button class="btn-refresh" onclick="refreshStatus()" title="Обновить статус">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+                </button>
+            </div>
+            <a href="#/download" class="btn btn-outline">СКАЧАТЬ ЛАУНЧЕР</a>
+        </header>
+
+        <div id="app-content" class="content-wrapper"></div>
+    </main>
+
+    <div class="maintenance" id="maintenance">
+        <div class="maintenance-card">
+            <h1 class="mnt-title">ТЕХНИЧЕСКИЕ РАБОТЫ</h1>
+            <p class="muted mb-20" id="mntMessage">Сервер находится на обновлении. Пожалуйста, зайдите позже.</p>
+            <div class="mnt-progress"><i></i></div>
+            <button class="btn btn-outline mt-15" onclick="location.reload()">ОБНОВИТЬ СТРАНИЦУ</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="loginModal">
+        <div class="modal-box">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 class="mono" style="color: var(--accent); margin:0;">> ACCESS TERMINAL</h3>
+                <button class="close-btn" onclick="closeModal('loginModal')">✕</button>
+            </div>
+            <input type="text" id="loginUser" name="loginUser" class="input-field" placeholder="LOGIN" autocomplete="off">
+            <input type="password" id="loginPass" name="loginPass" class="input-field" placeholder="PASSWORD" autocomplete="new-password">
+            <div id="loginError" class="mono mb-20" style="color: var(--red); min-height: 18px; font-size: 0.8rem;"></div>
+            <button class="btn btn-primary w-100" onclick="doLogin()">ВОЙТИ В СИСТЕМУ</button>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // ==========================================
+        // НАСТРОЙКИ SUPABASE
+        // ==========================================
+        const SUPABASE_URL = 'https://kxhnrkexjpyvvgivktjk.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4aG5ya2V4anB5dnZnaXZrdGprIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM0MzE4ODcsImV4cCI6MjEwOTAwNzg4N30.O_R-M2KqG4-fqYNP2qBcaICsqCFHgLVZKV5ghsDRMFg';
+        
+        let db = null;
+        try {
+            if (window.supabase) {
+                db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            }
+        } catch (e) {
+            console.error("Ошибка Supabase:", e);
+        }
+
+        // ==========================================
+        // БАЗА ДАННЫХ
+        // ==========================================
+        let DB = {
+            news: [],
+            staff: [],
+            logs: [],
+            settings: {
+                ip: 'play.nexus-scp.ru', version: '1.20.1 FORGE',
+                maintenance: false, maintMsg: 'Сервер находится на обновлении. Пожалуйста, зайдите позже.',
+                serverStatus: 'ONLINE', hostingStatus: 'NORMAL',
+                onlineCount: '0', projectStatus: 'ЗБТ', autoStatus: false,
+                discordWidgetId: ''
+            },
+            rules: { discord: '', rp: '', staff: '' },
+            user: null
+        };
+
+        // ==========================================
+        // УТИЛИТЫ
+        // ==========================================
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${type === 'error' ? 'error' : ''}`;
+            const icon = type === 'error' ? '⚠️' : '✅';
+            toast.innerHTML = `<span style="font-size: 1.2rem;">${icon}</span> <span>${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function addLog(action) {
+            const date = new Date().toLocaleString('ru-RU');
+            const userName = DB.user ? DB.user.email.split('@')[0] : 'System';
+            DB.logs.unshift({ date, text: `${userName}: ${action}` });
+            if (DB.logs.length > 50) DB.logs.pop(); // Храним последние 50
+            await saveSettingToSupabase('action_logs', DB.logs);
+        }
+
+        async function saveSettingToSupabase(key, value) {
+            if(!db) return;
+            const { error } = await db.from('site_settings').upsert({ key: key, value: value });
+            if (error) console.error(error);
+        }
+
+        // ==========================================
+        // ЗАГРУЗКА ДАННЫХ
+        // ==========================================
+        async function loadDataFromSupabase() {
+            if(!db) return;
+            try {
+                const { data: settingsData } = await db.from('site_settings').select('*');
+                if (settingsData) {
+                    settingsData.forEach(row => {
+                        if(row.key === 'staff_data') { if(Array.isArray(row.value)) DB.staff = row.value; }
+                        else if(row.key === 'action_logs') { if(Array.isArray(row.value)) DB.logs = row.value; }
+                        else { DB.settings[row.key] = row.value; }
+                    });
+                }
+
+                if(DB.staff.length === 0) {
+                    DB.staff = [
+                        { section: 'high', role: 'Основатель проекта', name: 'Sayderty', tag: 'FOUNDER', level: 'LEVEL-5' },
+                        { section: 'high', role: 'Руководитель проекта', name: 'dark_esz', tag: 'MANAGER', level: 'LEVEL-5' },
+                        { section: 'high', role: 'Куратор', name: 'NewStalker3041', tag: 'CURATOR', level: 'LEVEL-4' }
+                    ];
+                    await saveSettingToSupabase('staff_data', DB.staff);
+                }
+
+                const { data: rulesData } = await db.from('site_rules').select('*');
+                if (rulesData) rulesData.forEach(row => { DB.rules[row.key] = row.content; });
+
+                const { data: newsData } = await db.from('news').select('*').order('id', { ascending: false });
+                if (newsData) DB.news = newsData;
+
+                const { data: { session } } = await db.auth.getSession();
+                DB.user = session ? session.user : null;
+                if (DB.user) document.getElementById('adminNavLink').style.display = 'flex';
+
+                if (DB.settings.autoStatus) updateServerStatus();
+            } catch (e) { console.error("Ошибка загрузки:", e); }
+        }
+
+        // ==========================================
+        // МОНИТОР И СТАТУС
+        // ==========================================
+        function renderMonitor() {
+            const s = DB.settings.serverStatus;
+            const h = DB.settings.hostingStatus;
+            let color = 'var(--green)', label = 'HOSTING_SYSTEM';
+            
+            if (h === 'UNPAID' || s === 'OFFLINE') { color = 'var(--red)'; label = 'HOSTING_OFFLINE'; }
+            else if (s === 'MAINTENANCE') { color = 'var(--yellow)'; label = 'MAINTENANCE'; }
+
+            return `
+                <div class="server-monitor mouse-glow" style="border-top: 3px solid ${color};">
+                    <div class="monitor-head"><span class="mono">NEXUS_NETWORK</span><span class="mono" style="color:${color}">● LIVE</span></div>
+                    <div class="monitor-body" style="padding: 50px 20px;">
+                        <div class="pulse-wrap" style="width: 160px; height: 160px;">
+                            <div class="pulse-ring" style="border-color:${color}"></div>
+                            <div class="pulse-dot" style="background:${color}; box-shadow:0 0 40px ${color}; width: 90px; height: 90px;"></div>
+                        </div>
+                        <div class="monitor-label mono" style="color:${color}; font-size: 1.4rem; margin-top: 15px;">${label}</div>
+                    </div>
+                    <div class="monitor-stats">
+                        <div class="mstat"><div class="mk mono">Server</div><div class="mv mono">${DB.settings.ip}</div></div>
+                        <div class="mstat"><div class="mk mono">Version</div><div class="mv mono">${DB.settings.version}</div></div>
+                        <div class="mstat"><div class="mk mono">Access</div><div class="mv mono">INTERNAL</div></div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function refreshStatus() {
+            const btn = document.querySelector('.btn-refresh');
+            if(btn) btn.classList.add('spinning');
+            try {
+                if (DB.settings.autoStatus) {
+                    await updateServerStatus();
+                }
+                router(); 
+                showToast('Данные успешно обновлены');
+            } catch(e) {
+                showToast('Ошибка при обновлении', 'error');
+            }
+            setTimeout(() => { if(btn) btn.classList.remove('spinning'); }, 600);
+        }
+
+        async function updateServerStatus() {
+            if (!DB.settings.autoStatus) return;
+            const ip = DB.settings.ip;
+            if (!ip || ip.length < 3) return;
+            try {
+                const res = await fetch(`https://api.mcsrvstat.us/3/${encodeURIComponent(ip)}`);
+                const data = await res.json();
+                const newStatus = data.online ? 'ONLINE' : 'OFFLINE';
+                const newCount = data.online && data.players ? String(data.players.online) : '0';
+                
+                if (DB.settings.serverStatus !== newStatus || DB.settings.onlineCount !== newCount) {
+                    DB.settings.serverStatus = newStatus;
+                    DB.settings.onlineCount = newCount;
+                    await saveSettingToSupabase('serverStatus', newStatus);
+                    await saveSettingToSupabase('onlineCount', newCount);
+                }
+            } catch (e) { console.error('mcstatus error:', e); }
+        }
+
+        // ==========================================
+        // РОУТЕР И АНИМАЦИИ
+        // ==========================================
+        const routes = {
+            '/home': renderHome, '/rules-discord': renderRulesDiscord, '/rules-rp': renderRulesRP,
+            '/rules-admin': renderRulesAdmin, '/management': renderManagement, '/staff': renderStaff,
+            '/roles': renderRoles, '/download': renderDownload, '/about': renderAbout, '/admin': renderAdmin
+        };
+
+        function router() {
+            let hash = window.location.hash.replace('#', '') || '/home';
+            if (!routes[hash]) hash = '/home';
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.toggle('active', link.getAttribute('href') === '#' + hash);
+            });
+            
+            const content = document.getElementById('app-content');
+            if (content) {
+                content.classList.add('fade-out');
+                setTimeout(() => {
+                    content.innerHTML = '';
+                    try { routes[hash](content); } 
+                    catch (err) { console.error(err); content.innerHTML = `<div class="panel"><h2 style="color:red">Ошибка</h2></div>`; }
+                    content.classList.remove('fade-out');
+                }, 200);
+            }
+            
+            if (window.innerWidth <= 900) document.getElementById('sidebar').classList.remove('open');
+            
+            const mnt = document.getElementById('maintenance');
+            if (mnt) { DB.settings.maintenance && !DB.user ? mnt.classList.add('show') : mnt.classList.remove('show'); }
+            
+            initMouseGlow(); 
+        }
+
+        window.addEventListener('hashchange', router);
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+        // ==========================================
+        // СТРАНИЦЫ
+        // ==========================================
+        function renderHome(container) {
+            const newsHTML = DB.news.map(n => `
+                <div class="panel mouse-glow mb-20">
+                    <div class="mono" style="color:var(--accent); font-size:0.8rem; margin-bottom:5px;">> DATE: ${n.date}</div>
+                    <h3 style="color:#fff; margin-bottom:10px;">${n.title}</h3>
+                    <p style="white-space:pre-wrap;">${n.content}</p>
+                    ${n.image ? `<img src="${n.image}" style="width:100%; border-radius:8px; margin-top:10px;">` : ''}
+                </div>
+            `).join('');
+
+            container.innerHTML = `
+                <div class="hero">
+                    <div>
+                        <h1 class="hero-title"><span class="grad">NEXUS</span><br>SCP-RP</h1>
+                        <p class="mono" style="color:var(--accent); letter-spacing:2px; margin-bottom:20px;">> ДОБРО ПОЖАЛОВАТЬ В ТЕРМИНАЛ ФОНДА</p>
+                        <p>Официальный портал ролевого проекта по вселенной SCP в Minecraft 1.20.1 Forge.</p>
+                        <div style="margin-top: 30px; display: flex; gap: 15px;">
+                            <a href="#/rules-rp" class="btn btn-outline">ПРАВИЛА RP</a>
+                            <a href="#/download" class="btn btn-primary">СКАЧАТЬ ЛАУНЧЕР</a>
+                        </div>
+                    </div>
+                    <div>${renderMonitor()}</div>
+                </div>
+
+                <div class="status-row mb-20">
+                    <div class="status-cell mouse-glow">
+                        <div class="head"><div class="dot" style="background: ${DB.settings.serverStatus === 'OFFLINE' ? 'var(--red)' : 'var(--green)'}"></div><strong>Сервер ${DB.settings.serverStatus === 'OFFLINE' ? 'оффлайн' : 'онлайн'}</strong></div>
+                        <div class="sub">Актуальный статус проекта</div>
+                    </div>
+                    <div class="status-cell mouse-glow">
+                        <div class="big">${DB.settings.onlineCount || '0'}</div>
+                        <div class="k">Игроков онлайн</div>
+                    </div>
+                    <div class="status-cell mouse-glow">
+                        <div class="big" style="color:var(--accent)">${DB.settings.projectStatus || 'ЗБТ'}</div>
+                        <div class="k">Статус проекта</div>
+                    </div>
+                </div>
+
+                <h2>// Последние обновления</h2>
+                ${newsHTML || '<p class="muted">Новостей пока нет.</p>'}
+            `;
+        }
+
+        function renderRulesDiscord(container) {
+            container.innerHTML = `<h1 class="mb-20">Правила Discord</h1><div class="rules-content mouse-glow">${DB.rules.discord || '<p>Правила не заполнены.</p>'}</div>`;
+        }
+
+        function renderRulesRP(container) {
+            container.innerHTML = `<h1 class="mb-20">Правила отыгровки (RP)</h1><div class="rules-content mouse-glow">${DB.rules.rp || '<p>Правила не заполнены.</p>'}</div>`;
+        }
+
+        function renderRulesAdmin(container) {
+            container.innerHTML = `<h1 class="mb-20">Правила администрации</h1><div class="rules-content mouse-glow">${DB.rules.staff || '<p>Правила не заполнены.</p>'}</div>`;
+        }
+
+        function renderManagement(container) {
+            const management = DB.staff.filter(s => s.section === 'high');
+            const cards = management.map(s => `
+                <div class="mgmt-card mouse-glow">
+                    <div class="mgmt-level">${s.level || 'LEVEL-5'}</div>
+                    <div class="mgmt-tag">// ${s.tag || 'STAFF'}</div>
+                    <div class="mgmt-role">${s.role}</div>
+                    <div class="mgmt-name">${s.name}</div>
+                </div>
+            `).join('');
+            container.innerHTML = `<h1 class="mb-20">Руководство проекта</h1><div class="mgmt-grid">${cards}</div>`;
+        }
+
+        function renderStaff(container) {
+            const sections = ['high', 'admin', 'mod', 'trainee', 'builder'];
+            const sectionNames = { high: 'Высшее руководство', admin: 'Администрация', mod: 'Модерация', trainee: 'Стажёры', builder: 'Билдерский отдел' };
+
+            let html = `<h1 class="mb-20">Персонал проекта</h1>`;
+            sections.forEach(sec => {
+                const members = DB.staff.filter(s => s.section === sec);
+                if (members.length === 0) return;
+                html += `<div class="staff-section"><div class="staff-section-header ${sec === 'high' ? 'high' : ''}">${sectionNames[sec]}</div>`;
+                members.forEach((s, i) => {
+                    html += `
+                        <div class="staff-row mouse-glow">
+                            <div class="staff-num">${String(i + 1).padStart(2, '0')}</div>
+                            <div class="staff-role-name">${s.role}</div>
+                            <div class="${s.name ? 'staff-person' : 'staff-vacant'}">${s.name || 'VACANT'}</div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderRoles(container) {
+            container.innerHTML = `<h1 class="mb-20">Роли проекта</h1><div class="panel mouse-glow"><h2>// Список ролей (Заглушка)</h2><p>Описание игровых ролей появится позже.</p></div>`;
+        }
+
+        function renderDownload(container) {
+            container.innerHTML = `
+                <h1 class="mb-20">Скачать лаунчер</h1>
+                <div class="panel mouse-glow mb-20" style="text-align: center; padding: 50px 20px; background: linear-gradient(180deg, rgba(88,153,249,0.08) 0%, transparent 100%);">
+                    <h2 style="border: none; margin-bottom: 30px; color: #fff;">Готовы начать?</h2>
+                    <a href="https://github.com/rubixworld/nexus-scprp.github.io/releases/download/Launcher/NexusLauncher-Setup.exe" class="btn btn-primary" style="padding: 20px 50px; font-size: 1.1rem; display: inline-flex; align-items: center; gap: 12px;">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        СКАЧАТЬ ЛАУНЧЕР
+                    </a>
+                </div>
+                <div class="rules-punish mb-20" style="border-left-color: var(--yellow); background: rgba(241, 196, 15, 0.05); font-size: 13px;">
+                    <b>⚠️ Важно:</b> если антивирус ругается — это ложное срабатывание.
+                </div>
+            `;
+        }
+
+        function renderAbout(container) {
+            const widgetId = DB.settings.discordWidgetId;
+            const widgetHTML = widgetId 
+                ? `<iframe src="https://discord.com/widget?id=${widgetId}&theme=dark" width="100%" height="350" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin" style="border-radius: 8px; border: 1px solid var(--border);"></iframe>`
+                : `<p class="muted">ID виджета Discord не настроен. Укажите его в админ-панели.</p>`;
+
+            // ССЫЛКИ НА СОЦСЕТИ (ЗАМЕНИ НА СВОИ!)
+            const linkDiscord = "https://discord.gg/jhKv4RTKxM";
+            const linkTelegram = "https://t.me/nexus_scprp";
+            const linkVK = "https://vk.com/заглушка";
+
+            container.innerHTML = `
+                <h1 class="mb-20">О нас / Связь</h1>
+                
+                <h2>// Наши социальные сети</h2>
+                <div class="grid-3 mb-20">
+                    <a href="${linkDiscord}" target="_blank" rel="noopener" class="panel mouse-glow" style="text-align: center; padding: 40px 20px; display: flex; flex-direction: column; align-items: center;">
+                        <img src="icon-discord.png" alt="Discord" style="width:48px; margin-bottom:15px;">
+                        <h3>Discord</h3>
+                    </a>
+                    <a href="${linkTelegram}" target="_blank" rel="noopener" class="panel mouse-glow" style="text-align: center; padding: 40px 20px; display: flex; flex-direction: column; align-items: center;">
+                        <img src="icon-telegram.png" alt="Telegram" style="width:48px; margin-bottom:15px;">
+                        <h3>Telegram</h3>
+                    </a>
+                    <a href="${linkVK}" target="_blank" rel="noopener" class="panel mouse-glow" style="text-align: center; padding: 40px 20px; display: flex; flex-direction: column; align-items: center;">
+                        <img src="icon-vk.png" alt="ВКонтакте" style="width:48px; margin-bottom:15px;">
+                        <h3>ВКонтакте</h3>
+                    </a>
+                </div>
+
+                <h2>// Discord Сервер</h2>
+                <div class="panel mouse-glow mb-20">
+                    ${widgetHTML}
+                </div>
+            `;
+        }
+
+        // ==========================================
+        // АДМИНКА
+        // ==========================================
+        function isAdmin() { return DB.user !== null; }
+
+        function renderAdmin(container) {
+            if (!isAdmin()) { window.location.hash = '#/home'; return; }
+
+            container.innerHTML = `
+                <div class="panel mb-20 mouse-glow" style="border-left: 3px solid var(--red);">
+                    <h1 style="color: var(--red); margin:0;">ADMIN PANEL</h1>
+                    <p class="mono mt-15">> USER: ${DB.user.email}</p>
+                    <button class="btn btn-outline mt-15" onclick="logout()">ЗАВЕРШИТЬ СЕАНС</button>
+                </div>
+
+                <div class="admin-tabs">
+                    <button class="admin-tab active" onclick="switchTab('tab-news', this)">Новости</button>
+                    <button class="admin-tab" onclick="switchTab('tab-settings', this)">Настройки</button>
+                    <button class="admin-tab" onclick="switchTab('tab-staff', this)">Персонал</button>
+                    <button class="admin-tab" onclick="switchTab('tab-rules', this)">Правила</button>
+                    <button class="admin-tab" onclick="switchTab('tab-logs', this)">Логи</button>
+                </div>
+
+                <div class="admin-section active" id="tab-news">
+                    <div class="grid-2">
+                        <div class="panel mouse-glow">
+                            <h2>// Создать новость</h2>
+                            <input type="text" id="newsTitle" class="input-field" placeholder="Заголовок">
+                            <textarea id="newsContent" class="input-field" placeholder="Текст новости..."></textarea>
+                            <label class="mono muted" style="font-size:0.8rem; display:block; margin-bottom:5px;">Картинка (файл или ссылка)</label>
+                            <input type="file" id="newsImageFile" class="input-field" accept="image/*" style="padding: 8px;">
+                            <input type="url" id="newsImage" class="input-field" placeholder="URL картинки (если нет файла)">
+                            <button class="btn btn-primary" onclick="createNews()">ОПУБЛИКОВАТЬ</button>
+                        </div>
+                        <div class="panel mouse-glow">
+                            <h2>// Опубликовано</h2>
+                            <div id="adminNewsList">
+                                ${DB.news.map(n => `
+                                    <div style="display:flex; justify-content:space-between; align-items:center; background:rgba(0,0,0,0.3); padding:10px 15px; border-radius:8px; margin-bottom:10px; border:1px solid var(--border);">
+                                        <div><strong style="color:#fff">${n.title}</strong></div>
+                                        <button class="btn btn-danger" style="padding:5px 10px;" onclick="deleteNews(${n.id})">✕</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="admin-section" id="tab-settings">
+                    <div class="panel mouse-glow">
+                        <h2>// Настройки</h2>
+                        <div class="adm-toggle mb-20">
+                            <span>Авто-определение статуса (mcstatus)</span>
+                            <div class="adm-switch ${DB.settings.autoStatus ? 'on' : ''}" id="swAutoStatus" onclick="document.getElementById('swAutoStatus').classList.toggle('on')"></div>
+                        </div>
+                        <div class="grid-2 mb-20">
+                            <div><label class="mono muted">IP Сервера</label><input type="text" id="setIp" class="input-field" value="${DB.settings.ip}"></div>
+                            <div><label class="mono muted">Версия</label><input type="text" id="setVer" class="input-field" value="${DB.settings.version}"></div>
+                        </div>
+                        <div class="mb-20">
+                            <label class="mono muted">ID Виджета Discord (только цифры)</label>
+                            <input type="text" id="setDiscordWidget" class="input-field" value="${DB.settings.discordWidgetId || ''}" placeholder="Например: 123456789012345678">
+                        </div>
+                        <div class="grid-2">
+                            <div><label class="mono muted">Статус СЕРВЕРА</label>
+                                <select id="setServerStatus" class="input-field">
+                                    <option value="ONLINE" ${DB.settings.serverStatus==='ONLINE'?'selected':''}>ONLINE</option>
+                                    <option value="OFFLINE" ${DB.settings.serverStatus==='OFFLINE'?'selected':''}>OFFLINE</option>
+                                </select>
+                            </div>
+                            <div><label class="mono muted">Статус ХОСТИНГА</label>
+                                <select id="setHostingStatus" class="input-field">
+                                    <option value="NORMAL" ${DB.settings.hostingStatus==='NORMAL'?'selected':''}>NORMAL</option>
+                                    <option value="UNPAID" ${DB.settings.hostingStatus==='UNPAID'?'selected':''}>UNPAID</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary mt-15" onclick="saveSettings()">СОХРАНИТЬ</button>
+                    </div>
+                </div>
+
+                <div class="admin-section" id="tab-staff">
+                    <div class="panel mouse-glow mb-20">
+                        <h2>// Добавить сотрудника</h2>
+                        <div class="grid-2">
+                            <div><label class="mono muted">Имя (Ник)</label><input type="text" id="staffName" class="input-field" placeholder="Никнейм"></div>
+                            <div><label class="mono muted">Должность</label><input type="text" id="staffRole" class="input-field" placeholder="Модератор"></div>
+                        </div>
+                        <div class="grid-3 mt-15">
+                            <div><label class="mono muted">Отдел</label>
+                                <select id="staffSection" class="input-field">
+                                    <option value="high">Руководство</option>
+                                    <option value="admin">Администрация</option>
+                                    <option value="mod">Модерация</option>
+                                    <option value="trainee">Стажёры</option>
+                                    <option value="builder">Билдеры</option>
+                                </select>
+                            </div>
+                            <div><label class="mono muted">Тег</label><input type="text" id="staffTag" class="input-field" placeholder="FOUNDER"></div>
+                            <div><label class="mono muted">Уровень</label><input type="text" id="staffLevel" class="input-field" placeholder="LEVEL-5"></div>
+                        </div>
+                        <button class="btn btn-primary mt-15" onclick="addStaffMember()">ДОБАВИТЬ</button>
+                    </div>
+                    <div class="panel mouse-glow">
+                        <h2>// Текущий состав (перетаскивайте для смены порядка)</h2>
+                        <div id="adminStaffList"></div>
+                    </div>
+                </div>
+
+                <div class="admin-section" id="tab-rules">
+                    <div class="panel mouse-glow">
+                        <h2>// Редактор правил</h2>
+                        <div class="wysiwyg-wrap">
+                            <label class="mono muted mb-20" style="display:block;">Правила Discord</label>
+                            <div class="wysiwyg-toolbar">
+                                <button onclick="execCmd('bold')"><b>B</b></button>
+                                <button onclick="formatBlock('rules-punish')" style="color: var(--yellow);">Плашка</button>
+                                <button onclick="toggleHtmlMode(this)">&lt;/&gt;</button>
+                            </div>
+                            <div id="rulesDiscord" class="wysiwyg-editor" contenteditable="true">${DB.rules.discord}</div>
+                        </div>
+                        <button class="btn btn-primary mt-15" onclick="saveRules()">СОХРАНИТЬ ПРАВИЛА</button>
+                    </div>
+                </div>
+
+                <div class="admin-section" id="tab-logs">
+                    <div class="panel mouse-glow">
+                        <h2>// История действий</h2>
+                        <div style="max-height: 400px; overflow-y: auto;">
+                            ${DB.logs.length ? DB.logs.map(l => `<div style="border-bottom:1px solid var(--border); padding:10px 0;"><span class="mono" style="color:var(--accent); font-size:0.8rem;">[${l.date}]</span> ${l.text}</div>`).join('') : '<p class="muted">Логов пока нет.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+            renderAdminStaffList();
+        }
+
+        function switchTab(tabId, btn) {
+            document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btn.classList.add('active');
+            initMouseGlow();
+        }
+
+        // ==========================================
+        // СОХРАНЕНИЕ И ДОБАВЛЕНИЕ
+        // ==========================================
+        async function saveSettings() {
+            DB.settings.ip = document.getElementById('setIp').value;
+            DB.settings.version = document.getElementById('setVer').value;
+            DB.settings.serverStatus = document.getElementById('setServerStatus').value;
+            DB.settings.hostingStatus = document.getElementById('setHostingStatus').value;
+            DB.settings.autoStatus = document.getElementById('swAutoStatus').classList.contains('on');
+            DB.settings.discordWidgetId = document.getElementById('setDiscordWidget').value.trim(); // <--- ДОБАВИЛИ
+
+            for (let key in DB.settings) { await saveSettingToSupabase(key, DB.settings[key]); }
+            await addLog('Обновил настройки сервера');
+            showToast('Настройки сохранены!');
+            router();
+        }
+
+        async function createNews() {
+            const title = document.getElementById('newsTitle').value;
+            const content = document.getElementById('newsContent').value;
+            const imageUrl = document.getElementById('newsImage').value;
+            const fileInput = document.getElementById('newsImageFile');
+            
+            if (!title || !content) return showToast('Заполните поля!', 'error');
+            
+            let finalImage = imageUrl;
+
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '')}`;
+                showToast('Загрузка картинки...');
+                
+                const { data, error } = await db.storage.from('images').upload(fileName, file);
+                if (error) {
+                    showToast('Ошибка загрузки файла: ' + error.message, 'error');
+                    return;
+                }
+                const { data: publicUrl } = db.storage.from('images').getPublicUrl(fileName);
+                finalImage = publicUrl.publicUrl;
+            }
+
+            const date = new Date().toLocaleDateString('ru-RU');
+            const { data, error } = await db.from('news').insert([{ title, content, image: finalImage, date }]).select();
+            
+            if (error) return showToast('Ошибка БД: ' + error.message, 'error');
+            
+            DB.news.unshift(data[0]);
+            await addLog('Опубликовал новость: ' + title);
+            showToast('Новость опубликована!');
+            router();
+        }
+
+        async function deleteNews(id) {
+            if (!confirm('Удалить?')) return;
+            const { error } = await db.from('news').delete().eq('id', id);
+            if (error) return showToast('Ошибка: ' + error.message, 'error');
+            DB.news = DB.news.filter(n => n.id !== id);
+            await addLog('Удалил новость');
+            showToast('Новость удалена');
+            router();
+        }
+
+        // ==========================================
+        // ПЕРСОНАЛ (Drag & Drop)
+        // ==========================================
+        function renderAdminStaffList() {
+            const list = document.getElementById('adminStaffList');
+            if (!list) return;
+            if (DB.staff.length === 0) { list.innerHTML = '<p class="muted">Список пуст.</p>'; return; }
+
+            list.innerHTML = DB.staff.map((s, index) => `
+                <div class="staff-admin-row" draggable="true" data-index="${index}">
+                    <div style="display:flex; align-items:center;">
+                        <span class="drag-handle">≡</span>
+                        <strong style="color:#fff; margin-right:10px;">${s.name}</strong> 
+                        <span class="muted">${s.role}</span>
+                    </div>
+                    <button class="btn btn-danger" style="padding:5px 10px;" onclick="deleteStaffMember(${index})">✕</button>
+                </div>
+            `).join('');
+
+            let dragSrcEl = null;
+
+            document.querySelectorAll('.staff-admin-row').forEach(row => {
+                row.addEventListener('dragstart', function(e) {
+                    dragSrcEl = this;
+                    e.dataTransfer.effectAllowed = 'move';
+                    this.classList.add('dragging');
+                });
+
+                row.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                });
+
+                row.addEventListener('dragleave', function() {
+                    this.classList.remove('drag-over');
+                });
+
+                row.addEventListener('drop', async function(e) {
+                    e.stopPropagation();
+                    if (dragSrcEl !== this) {
+                        const fromIndex = parseInt(dragSrcEl.getAttribute('data-index'));
+                        const toIndex = parseInt(this.getAttribute('data-index'));
+                        
+                        const item = DB.staff.splice(fromIndex, 1)[0];
+                        DB.staff.splice(toIndex, 0, item);
+                        
+                        await saveSettingToSupabase('staff_data', DB.staff);
+                        await addLog('Изменил порядок персонала');
+                        renderAdminStaffList();
+                        showToast('Порядок обновлен');
+                    }
+                    return false;
+                });
+
+                row.addEventListener('dragend', function() {
+                    document.querySelectorAll('.staff-admin-row').forEach(r => r.classList.remove('dragging', 'drag-over'));
+                });
+            });
+        }
+
+        async function addStaffMember() {
+            const name = document.getElementById('staffName').value.trim();
+            const role = document.getElementById('staffRole').value.trim();
+            const section = document.getElementById('staffSection').value;
+            const tag = document.getElementById('staffTag').value.trim();
+            const level = document.getElementById('staffLevel').value.trim();
+
+            if (!name || !role) return showToast('Заполните имя и должность!', 'error');
+            DB.staff.push({ name, role, section, tag, level });
+            await saveSettingToSupabase('staff_data', DB.staff);
+            await addLog('Добавил сотрудника: ' + name);
+            showToast('Сотрудник добавлен!');
+            renderAdmin(document.getElementById('app-content'));
+            const targetTab = Array.from(document.querySelectorAll('.admin-tab')).find(t => t.innerText === 'Персонал');
+            if(targetTab) switchTab('tab-staff', targetTab);
+        }
+
+        async function deleteStaffMember(index) {
+            if (!confirm('Удалить сотрудника?')) return;
+            const name = DB.staff[index].name;
+            DB.staff.splice(index, 1);
+            await saveSettingToSupabase('staff_data', DB.staff);
+            await addLog('Удалил сотрудника: ' + name);
+            showToast('Сотрудник удален');
+            renderAdmin(document.getElementById('app-content'));
+            const targetTab = Array.from(document.querySelectorAll('.admin-tab')).find(t => t.innerText === 'Персонал');
+            if(targetTab) switchTab('tab-staff', targetTab);
+        }
+
+        // ==========================================
+        // ПРАВИЛА (WYSIWYG)
+        // ==========================================
+        async function saveRules() {
+            const rules = { discord: document.getElementById('rulesDiscord').innerHTML };
+            for (let key in rules) { 
+                await db.from('site_rules').upsert({ key: key, content: rules[key] }); 
+                DB.rules[key] = rules[key]; 
+            }
+            await addLog('Обновил правила Discord');
+            showToast('Правила сохранены!');
+        }
+
+        function toggleHtmlMode(btn) {
+            const wrap = btn.closest('.wysiwyg-wrap');
+            const editor = wrap.querySelector('.wysiwyg-editor');
+            const isCodeMode = btn.getAttribute('data-active') === 'true';
+
+            if (!isCodeMode) {
+                btn.setAttribute('data-active', 'true');
+                editor.textContent = editor.innerHTML; 
+                editor.style.fontFamily = 'var(--font-mono)';
+                editor.style.color = '#a5d6ff';
+                btn.style.background = 'var(--accent)';
+            } else {
+                btn.setAttribute('data-active', 'false');
+                let rawText = editor.textContent;
+                if (rawText.trim().startsWith('{') && rawText.trim().endsWith('}')) {
+                    try {
+                        const parsed = JSON.parse(rawText);
+                        if(parsed.discord) rawText = parsed.discord;
+                    } catch (e) {}
+                }
+                let decoded = rawText;
+                for (let i = 0; i < 2; i++) {
+                    if (decoded.includes('&lt;')) {
+                        const ta = document.createElement('textarea');
+                        ta.innerHTML = decoded;
+                        decoded = ta.value;
+                    }
+                }
+                editor.innerHTML = decoded;
+                editor.style.fontFamily = 'inherit';
+                editor.style.color = '#fff';
+                btn.style.background = '';
+            }
+        }
+
+        function execCmd(command, value = null) { document.execCommand(command, false, value); }
+
+        function formatBlock(className) {
+            const selection = window.getSelection();
+            if (!selection.rangeCount) return;
+            const range = selection.getRangeAt(0);
+            if (range.collapsed) return showToast('Выделите текст!', 'error');
+            const div = document.createElement('div');
+            div.className = className;
+            div.appendChild(range.extractContents());
+            range.insertNode(div);
+            selection.removeAllRanges();
+        }
+
+        // ==========================================
+        // АВТОРИЗАЦИЯ
+        // ==========================================
+        async function doLogin() {
+            const email = document.getElementById('loginUser').value.trim();
+            const pass = document.getElementById('loginPass').value.trim();
+            const err = document.getElementById('loginError');
+            const { data, error } = await db.auth.signInWithPassword({ email, password: pass });
+            if (error) { if(err) err.textContent = '> ОШИБКА: ' + error.message; }
+            else {
+                DB.user = data.user;
+                document.getElementById('adminNavLink').style.display = 'flex';
+                closeModal('loginModal');
+                window.location.hash = '#/admin';
+                await addLog('Вход в систему');
+            }
+        }
+
+        async function logout() {
+            await addLog('Выход из системы');
+            await db.auth.signOut();
+            DB.user = null;
+            document.getElementById('adminNavLink').style.display = 'none';
+            window.location.hash = '#/home';
+            router();
+        }
+
+        document.getElementById('brandBtn').addEventListener('click', function(e) {
+            if (e.ctrlKey && e.shiftKey) {
+                e.preventDefault();
+                if (DB.user) window.location.hash = '#/admin';
+                else openModal('loginModal');
+            } else { window.location.hash = '#/home'; }
+        });
+
+        function openModal(id) { const m = document.getElementById(id); if(m) m.classList.add('active'); }
+        function closeModal(id) { const m = document.getElementById(id); if(m) m.classList.remove('active'); }
+
+        // ==========================================
+        // ВИЗУАЛЬНЫЕ ЭФФЕКТЫ
+        // ==========================================
+        function initMouseGlow() {
+            const selectors = '.panel, .pcard, .mgmt-card, .staff-row, .status-cell, .rules-content, .server-monitor';
+            document.querySelectorAll(selectors).forEach(el => {
+                if (!el.classList.contains('mouse-glow')) el.classList.add('mouse-glow');
+                if (!el.dataset.glowInit) {
+                    el.dataset.glowInit = 'true';
+                    el.addEventListener('mousemove', (e) => {
+                        const rect = el.getBoundingClientRect();
+                        el.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+                        el.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+                    });
+                }
+            });
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            const x = (e.clientX - window.innerWidth / 2) / 40; 
+            const y = (e.clientY - window.innerHeight / 2) / 40;
+            document.documentElement.style.setProperty('--parallax-x', `${x}px`);
+            document.documentElement.style.setProperty('--parallax-y', `${y}px`);
+        });
+
+        // ==========================================
+        // ИНИЦИАЛИЗАЦИЯ
+        // ==========================================
+        window.addEventListener('load', async () => {
+            // Ждем загрузку данных
+            if (db) await loadDataFromSupabase();
+            
+            // Скрываем прелоадер
+            const preloader = document.getElementById('preloader');
+            if (preloader) {
+                preloader.classList.add('hidden');
+                setTimeout(() => preloader.remove(), 500);
+            }
+            
+            // Запускаем роутер
+            router();
+            setInterval(updateServerStatus, 120000);
+        });
+    </script>
+</body>
+</html>
